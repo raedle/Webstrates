@@ -63,9 +63,9 @@ function toHTML(elem, xmlNs, scripts) {
 				// As also mentioned in regards to foreignobject, setting the namspace to the default
 				// ("http://www.w3.org/1999/xhtml") causes stuff to not render properly.
 				if (xmlNs && xmlNs !== 'http://www.w3.org/1999/xhtml') {
-					selector = document.createElementNS(xmlNs, name);
+					selector = document.createElementNS(xmlNs, name, { approved: true });
 				} else {
-					selector = document.createElement(name);
+					selector = document.createElement(name, { approved: true });
 				}
 
 				// Add attributes to the element.
@@ -112,7 +112,7 @@ function toHTML(elem, xmlNs, scripts) {
 
 	if (!selector && name) {
 		name = coreUtils.sanitizeString(name);
-		selector = document.createElement(name);
+		selector = document.createElement(name, { approved: true });
 	}
 
 	// If a selector is set append children and return

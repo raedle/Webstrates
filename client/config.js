@@ -18,15 +18,20 @@ module.exports = {
 		'signalStream',
 		'assets',
 		'messages',
-		'keepAlive'
+		'keepAlive',
+		'nodeApproval'
 	],
 	// Reuse the parent's websocket when doing transclusion. Very experimental.
 	reuseWebsocket: false,
 	// Keep alive message interval in seconds. A falsy value disables keep alive.
 	keepAliveInterval: 25,
+	// Adds a not-approved attribute to DOM nodes that are not created with approved option
+	approveVerbose: true,
 	// Supports selector syntax, i.e. 'div.not-persisted' to not persist all DIV elements with the
 	// class 'not-persisted'.
-	isTransientElement: (DOMNode) => DOMNode.matches('transient'),
+	isTransientElement: (DOMNode) => {
+		return DOMNode.matches('transient,[not-approved]') || DOMNode.__isNotApproved__;
+	},
 	// Any attributeName starting with 'transient-' should be transient.
 	isTransientAttribute: (DOMNode, attributeName) => attributeName.startsWith('transient-'),
 	// Peer Connection configuration used for the WebRTC-based signal streaming.

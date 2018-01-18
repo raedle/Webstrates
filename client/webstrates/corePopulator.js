@@ -7,6 +7,7 @@ const corePathTree = require('./corePathTree');
 const corePopulator = {};
 
 coreEvents.createEvent('populated');
+coreEvents.createEvent('populatedBeforeScriptExecution');
 
 corePopulator.populate = function(rootElement, doc) {
 	// Empty the document, so we can use it.
@@ -48,6 +49,9 @@ corePopulator.populate = function(rootElement, doc) {
 	const scripts = [];
 	const html = coreJsonML.toHTML(doc.data, undefined, scripts);
 	coreUtils.appendChildWithoutScriptExecution(rootElement, html);
+
+	// Trigger event before scripts are executed.
+	coreEvents.triggerEvent('populatedBeforeScriptExecution');
 
 	return new Promise((resolve) => {
 		coreUtils.executeScripts(scripts, () => {

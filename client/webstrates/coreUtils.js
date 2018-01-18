@@ -1,4 +1,6 @@
 'use strict';
+const coreEvents = require('./coreEvents');
+
 const coreUtilsModule = {};
 
 let locationObject;
@@ -189,7 +191,7 @@ coreUtilsModule.executeScripts = (scripts, callback) => {
 	}
 
 	var executeImmediately = !script.src;
-	var newScript = document.createElementNS(script.namespaceURI, 'script');
+	var newScript = document.createElementNS(script.namespaceURI, 'script', { approved: true });
 	if (!executeImmediately) {
 		newScript.onload = newScript.onerror = function() {
 			coreUtilsModule.executeScripts(scripts, callback);
@@ -209,10 +211,16 @@ coreUtilsModule.executeScripts = (scripts, callback) => {
 	// over the value, leaving it modifiable otherwise.
 	coreUtilsModule.setWidOnElement(newScript, script.__wid);
 
+	coreEvents.triggerEvent('disableApprove');
+	
 	newScript.innerHTML = script.innerHTML;
+
+	console.log('coreUtils before insert');
 
 	script.parentElement.insertBefore(newScript, script);
 	script.remove();
+
+	coreEvents.triggerEvent('enableApprove');
 
 	if (executeImmediately) {
 		coreUtilsModule.executeScripts(scripts, callback);
@@ -234,7 +242,7 @@ coreUtilsModule.isTranscluded = () => window.frameElement && window.parent !== w
  * @public
  */
 coreUtilsModule.sameParentDomain = () => {
-	const a = document.createElement('a');
+	const a = document.createElement('a', { approved: true });
 	a.href = document.referrer;
 	return a.host === location.host;
 };

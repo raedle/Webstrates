@@ -43,7 +43,7 @@ Object.defineProperty(globalObject.publicObject, 'assets', {
  * @public
  */
 globalObject.publicObject.uploadAsset = (callback = () => {}, options = {}) => {
-	const input = document.createElement('input');
+	const input = document.createElement('input', { approved: true });
 	input.setAttribute('multiple', true);
 	input.setAttribute('type', 'file');
 
