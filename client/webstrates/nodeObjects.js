@@ -147,32 +147,32 @@ coreEvents.addEventListener('populated', targetElement => {
 	// document.createElementNS immediately here.
 	// We don't do this until after the document has been populated, because we just above attach
 	// webstrate objects on the entire DOM.
-	document.__createElementNS = document.createElementNS;
-	document.createElementNS = function(namespaceURI, qualifiedName, ...unused) {
-		var element = document.__createElementNS(namespaceURI, qualifiedName, ...unused);
+	const createElementNS = Document.prototype.createElementNS;
+	Document.prototype.createElementNS = function(namespaceURI, qualifiedName, options, ...unused) {
+		var element = createElementNS.call(this, namespaceURI, qualifiedName, options, ...unused);
 		attachWebstrateObjectToNode(element, true); // true to trigger webstrateObjectAdded event.
 		return element;
 	};
 
-	document.__createElement = document.createElement;
-	document.createElement = function(tagName, options, ...unused) {
-		var element = document.__createElement(tagName, options, ...unused);
+	const createElement = Document.prototype.createElement;
+	Document.prototype.createElement = function(tagName, options, ...unused) {
+		var element = createElement.call(this, tagName, options, ...unused);
 		attachWebstrateObjectToNode(element, true); // true to trigger webstrateObjectAdded event.
 		return element;
 	};
 
-	document.__importNode = document.importNode;
-	document.importNode = function(externalNode, deep, ...unused) {
-		var element = document.__importNode(externalNode, deep, ...unused);
+	const importNode = Document.prototype.importNode;
+	Document.prototype.importNode = function(externalNode, deep, ...unused) {
+		var element = importNode.call(this, externalNode, deep, ...unused);
 		coreUtils.recursiveForEach(element, childNode => {
 			attachWebstrateObjectToNode(childNode, true); // true to trigger webstrateObjectAdded event.
 		});
 		return element;
 	};
 
-	Element.prototype.__cloneNode = Element.prototype.cloneNode;
+	const cloneNode = Element.prototype.cloneNode;
 	Element.prototype.cloneNode = function(deep, ...unused) {
-		var element = Element.prototype.__cloneNode.call(this, deep, ...unused);
+		var element = cloneNode.call(this, deep, ...unused);
 		coreUtils.recursiveForEach(element, childNode => {
 			attachWebstrateObjectToNode(childNode, true); // true to trigger webstrateObjectAdded event.
 		});
