@@ -6,10 +6,53 @@ const corePathTree = require('./corePathTree');
 
 const corePopulator = {};
 
+coreEvents.createEvent('beforeExecuteScripts');
 coreEvents.createEvent('populated');
-coreEvents.createEvent('populatedBeforeScriptExecution');
 
-corePopulator.populate = function(rootElement, doc) {
+/**
+ * Reinsert and execute an array of scripts in order.
+ * @param {array}    scripts  Array of script DOM elements.
+ * @param {Function} callback Function to call once all scripts have been executed.
+ * @public
+ */
+const executeScripts = (scripts, callback) => {
+	var script = scripts.shift();
+	if (!script) {
+		return callback();
+	}
+
+	var executeImmediately = !script.src;
+	var newScript = document.createElementNS(script.namespaceURI, 'script', { approved: true });
+	if (!executeImmediately) {
+		newScript.onload = newScript.onerror = function () {
+			executeScripts(scripts, callback);
+		};
+	}
+
+	// Copy over all attribtues.
+	for (var i = 0; i < script.attributes.length; i++) {
+		var attr = script.attributes[i];
+		newScript.setAttribute(attr.nodeName, attr.nodeValue);
+	}
+
+	// Copy over all other properties.
+	Object.assign(newScript, script);
+
+	// We're defining the wid with defineProperty to make it non-modifiable, but assign will just copy
+	// over the value, leaving it modifiable otherwise.
+	coreUtils.setWidOnElement(newScript, script.__wid);
+
+	newScript.innerHTML = script.innerHTML;
+
+	script.parentElement.insertBefore(newScript, script);
+	script.remove();
+
+	if (executeImmediately) {
+		executeScripts(scripts, callback);
+	}
+};
+
+corePopulator.populate = function (rootElement, doc) {
 	// Empty the document, so we can use it.
 	while (rootElement.firstChild) {
 		rootElement.removeChild(rootElement.firstChild);
@@ -27,12 +70,14 @@ corePopulator.populate = function(rootElement, doc) {
 			console.warn(`Document: "${webstrateId}" exists, but was empty. Recreating basic document.`);
 		}
 
-		const op = [{ 'p': [], 'oi': [
-			'html', {},
-			[ 'head', {},
-				[ 'title', {}, webstrateId ] ],
-			[ 'body', {} ]
-		]}];
+		const op = [{
+			'p': [], 'oi': [
+				'html', {},
+				['head', {},
+					['title', {}, webstrateId]],
+				['body', {}]
+			]
+		}];
 		doc.submitOp(op);
 	}
 
@@ -51,10 +96,10 @@ corePopulator.populate = function(rootElement, doc) {
 	coreUtils.appendChildWithoutScriptExecution(rootElement, html);
 
 	// Trigger event before scripts are executed.
-	coreEvents.triggerEvent('populatedBeforeScriptExecution');
+	coreEvents.triggerEvent('beforeExecuteScripts');
 
 	return new Promise((resolve) => {
-		coreUtils.executeScripts(scripts, () => {
+		executeScripts(scripts, () => {
 			// Do not include the parent element in the path, i.e. create corePathTree on the <html>
 			// element rather than the document element.
 			const targetElement = rootElement.childNodes[0];

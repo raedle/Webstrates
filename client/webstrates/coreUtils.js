@@ -179,55 +179,6 @@ coreUtilsModule.appendChildWithoutScriptExecution = (parentElement, childElement
 };
 
 /**
- * Reinsert and execute an array of scripts in order.
- * @param {array}    scripts  Array of script DOM elements.
- * @param {Function} callback Function to call once all scripts have been executed.
- * @public
- */
-coreUtilsModule.executeScripts = (scripts, callback) => {
-	var script = scripts.shift();
-	if (!script) {
-		return callback();
-	}
-
-	var executeImmediately = !script.src;
-	var newScript = document.createElementNS(script.namespaceURI, 'script', { approved: true });
-	if (!executeImmediately) {
-		newScript.onload = newScript.onerror = function() {
-			coreUtilsModule.executeScripts(scripts, callback);
-		};
-	}
-
-	// Copy over all attribtues.
-	for (var i = 0; i < script.attributes.length; i++) {
-		var attr = script.attributes[i];
-		newScript.setAttribute(attr.nodeName, attr.nodeValue);
-	}
-
-	// Copy over all other properties.
-	Object.assign(newScript, script);
-
-	// We're defining the wid with defineProperty to make it non-modifiable, but assign will just copy
-	// over the value, leaving it modifiable otherwise.
-	coreUtilsModule.setWidOnElement(newScript, script.__wid);
-
-	coreEvents.triggerEvent('disableApprove');
-	
-	newScript.innerHTML = script.innerHTML;
-
-	console.log('coreUtils before insert');
-
-	script.parentElement.insertBefore(newScript, script);
-	script.remove();
-
-	coreEvents.triggerEvent('enableApprove');
-
-	if (executeImmediately) {
-		coreUtilsModule.executeScripts(scripts, callback);
-	}
-};
-
-/**
  * Check if the current page has been transcluded (i.e. is an iframe)
  * @return {bool} True if this frame is transcluded.
  * @public
@@ -242,7 +193,7 @@ coreUtilsModule.isTranscluded = () => window.frameElement && window.parent !== w
  * @public
  */
 coreUtilsModule.sameParentDomain = () => {
-	const a = document.createElement('a', { approved: true });
+	const a = document.createElement('a');
 	a.href = document.referrer;
 	return a.host === location.host;
 };
