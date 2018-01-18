@@ -170,8 +170,8 @@ coreEvents.addEventListener('populated', targetElement => {
 		return element;
 	};
 
-	const cloneNode = Element.prototype.cloneNode;
-	Element.prototype.cloneNode = function(deep, ...unused) {
+	const cloneNode = Node.prototype.cloneNode;
+	Node.prototype.cloneNode = function(deep, ...unused) {
 		var element = cloneNode.call(this, deep, ...unused);
 		coreUtils.recursiveForEach(element, childNode => {
 			attachWebstrateObjectToNode(childNode, true); // true to trigger webstrateObjectAdded event.
