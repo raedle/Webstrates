@@ -196,7 +196,7 @@ function childListMutation(mutation, targetPathNode) {
 				// element with a sanitized tag name.
 				if (sanitizedTagName !== childNode.tagName) {
 					let replacementNode = document.createElementNS(childNode.tagName.namespaceURI,
-						sanitizedTagName, { approved: true });
+						sanitizedTagName);
 
 					// Move all children.
 					while (childNode.firstChild) {
