@@ -1,54 +1,21 @@
 'use strict';
-const coreConfig = require('./coreConfig');
 const coreUtils = require('./coreUtils');
 const coreEvents = require('./coreEvents');
 
+const APPROVAL_TYPE = {
+	PROPERTY: 'property',
+	ATTRIBUTE: 'attribute'
+};
+
 const nodeApprovalModule = {
-	enabled: true
-};
+	init(options) {
 
-const approvalType = {
-	PROPERTY: 0,
-	ATTRIBUTE: 1
-};
-
-nodeApprovalModule.TYPE = new Proxy(approvalType, {
-	get: (target, name) => {
-		if (name in target) return target[name];
-		throw new Error(`Invalid approval type ${name}`);
-	}
-});
-
-coreConfig.nodeApproval = {
-	TYPE: nodeApprovalModule.TYPE,
-	type: nodeApprovalModule.TYPE.PROPERTY,
-	enable() {
-		nodeApprovalModule.enabled = true;
-	},
-	disable() {
-		nodeApprovalModule.enabled = false;
+		// assign options, otherwise use default options
+		this.options = Object.assign({}, {
+			approvalType: APPROVAL_TYPE.PROPERTY
+		}, options);
 	}
 };
-
-/******************************************/
-// @deprecated, will be removed soon
-const getParameterByName = function (name, url) {
-	if (!url) {
-		url = window.top.location.href;
-	}
-	name = name.replace(/[\[\]]/g, '\\$&');
-	let regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
-	let results = regex.exec(url);
-	if (!results) return null;
-	if (!results[2]) return '';
-	return decodeURIComponent(results[2].replace(/\+/g, ' '));
-};
-
-if (getParameterByName('verbose')) {
-	coreConfig.nodeApproval.type = approvalType.ATTRIBUTE;
-	console.log('verbose', true);
-}
-/******************************************/
 
 /**
  * Checks if the options parameter is an object, if it has the approved property, and
@@ -67,15 +34,14 @@ const isApproved = (options) => {
 };
 
 const approveNode = (node, options) => {
-
-	if (node.nodeType !== Node.ELEMENT_NODE || !nodeApprovalModule.enabled) return;
+	if (node.nodeType !== Node.ELEMENT_NODE) return;
 
 	if (!isApproved(options)) {
-		switch (coreConfig.nodeApproval.type) {
-			case approvalType.ATTRIBUTE:
+		switch (nodeApprovalModule.options.approvalType) {
+			case APPROVAL_TYPE.ATTRIBUTE:
 				node.setAttribute('not-approved', '');
 				break;
-			case approvalType.PROPERTY:
+			case APPROVAL_TYPE.PROPERTY:
 				node.__isNotApproved__ = true;
 				break;
 			default:
@@ -85,8 +51,6 @@ const approveNode = (node, options) => {
 };
 
 coreEvents.addEventListener('beforeExecuteScripts', () => {
-
-	console.log('execute node approval');
 
 	const _createElementNS = Document.prototype.createElementNS;
 	Document.prototype.createElementNS = function (namespaceURI, qualifiedName, options, ...unused) {

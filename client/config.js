@@ -5,6 +5,7 @@ module.exports = {
 		'loadedEvent',
 		'userObject',
 		'cookies',
+		'lazyLoadModules',
 		'nodeObjects',
 		'databaseErrors',
 		'dataSavedEvent',
@@ -18,8 +19,7 @@ module.exports = {
 		'signalStream',
 		'assets',
 		'messages',
-		'keepAlive',
-		'nodeApproval'
+		'keepAlive'
 	],
 	// Reuse the parent's websocket when doing transclusion. Very experimental.
 	reuseWebsocket: false,
