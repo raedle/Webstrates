@@ -113,7 +113,7 @@ function toHTML(elem, xmlNs, scripts) {
 
 	if (!selector && name) {
 		name = coreUtils.sanitizeString(name);
-		selector = document.createElement(name);
+		selector = document.createElement(name, { approved: true });
 	}
 
 	// If a selector is set append children and return

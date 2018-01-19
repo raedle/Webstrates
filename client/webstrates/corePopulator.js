@@ -88,7 +88,6 @@ corePopulator.populate = function (rootElement, doc) {
 		throw `Unsupported document type: ${doc.type.name}`;
 	}
 
-
 	// In order to execute scripts synchronously, we insert them all without execution, and then
 	// execute them in order afterwards.
 	const scripts = [];
@@ -96,7 +95,7 @@ corePopulator.populate = function (rootElement, doc) {
 	coreUtils.appendChildWithoutScriptExecution(rootElement, html);
 
 	// Trigger event before scripts are executed.
-	coreEvents.triggerEvent('beforeExecuteScripts');
+	coreEvents.triggerEvent('beforeExecuteScripts', rootElement, html);
 
 	return new Promise((resolve) => {
 		executeScripts(scripts, () => {

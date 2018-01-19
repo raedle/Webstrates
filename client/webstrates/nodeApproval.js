@@ -2,6 +2,17 @@
 const coreUtils = require('./coreUtils');
 const coreEvents = require('./coreEvents');
 
+// overwrite config.isTransientElement to make non-approved nodes transient
+config.isTransientElement = (DOMNode) => {
+	return DOMNode.matches('transient') || !(DOMNode.__approved__ || DOMNode.matches('[approved]'));
+};
+
+// Overwrite config.isTransientAttribute to make approved attribute in APPROVAL_TYPE.ATTRIBUTE
+// transient, otherwise that attribute gets synchronized to the server
+config.isTransientAttribute = (DOMNode, attributeName) => {
+	return attributeName.startsWith('transient-') || attributeName === 'approved';
+};
+
 const APPROVAL_TYPE = {
 	PROPERTY: 'property',
 	ATTRIBUTE: 'attribute'
@@ -34,15 +45,16 @@ const isApproved = (options) => {
 };
 
 const approveNode = (node, options) => {
-	if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-	if (!isApproved(options)) {
+	if (isApproved(options)) {
 		switch (nodeApprovalModule.options.approvalType) {
 			case APPROVAL_TYPE.ATTRIBUTE:
-				node.setAttribute('not-approved', '');
+				// only set approved attribute if possible
+				if (typeof node.setAttribute === 'function') {
+					node.setAttribute('approved', '');
+				}
 				break;
 			case APPROVAL_TYPE.PROPERTY:
-				node.__isNotApproved__ = true;
+				node.__approved__ = true;
 				break;
 			default:
 				break;
@@ -50,7 +62,12 @@ const approveNode = (node, options) => {
 	}
 };
 
-coreEvents.addEventListener('beforeExecuteScripts', () => {
+coreEvents.addEventListener('beforeExecuteScripts', (rootElement, html) => {
+
+	// approve all nodes already in the document that was delivered by the server
+	coreUtils.recursiveForEach(html, (childNode) => {
+		approveNode(childNode, { approved: true });
+	});
 
 	const _createElementNS = Document.prototype.createElementNS;
 	Document.prototype.createElementNS = function (namespaceURI, qualifiedName, options, ...unused) {
