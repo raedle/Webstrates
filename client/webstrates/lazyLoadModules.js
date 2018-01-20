@@ -4,6 +4,8 @@ const coreEvents = require('./coreEvents');
 // attribute name for optional modules loaded "lazily"
 const attributeName = 'webstrate-modules';
 
+coreEvents.createEvent('modulesLoaded');
+
 /**
  * The lazy loading modules checks for the "webstrate-modules" attribute on the document
  * element, parses its value into an array of strings, and tries to lazy load the modules
@@ -49,6 +51,8 @@ coreEvents.addEventListener('receivedDocument', (doc) => {
 			console.error(`could not parse ${attributeName} attribute on document element`);
 		}
 	}
+
+	coreEvents.triggerEvent('modulesLoaded');
 
 }, coreEvents.PRIORITY.IMMEDIATE);
 
