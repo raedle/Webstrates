@@ -3,34 +3,6 @@ const coreEvents = require('./coreEvents');
 const globalObject = require('./globalObject');
 const coreUtils = require('./coreUtils');
 
-!function (Object, getPropertyDescriptor, getPropertyNames) {
-	// (C) WebReflection - Mit Style License
-	if (!(getPropertyDescriptor in Object)) {
-		var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
-		Object[getPropertyDescriptor] = function getPropertyDescriptor(o, name) {
-			var proto = o, descriptor;
-			while (proto && !(
-				descriptor = getOwnPropertyDescriptor(proto, name))
-			) proto = proto.__proto__;
-			return descriptor;
-		};
-	}
-	if (!(getPropertyNames in Object)) {
-		var getOwnPropertyNames = Object.getOwnPropertyNames, ObjectProto = Object.prototype,
-			keys = Object.keys;
-		Object[getPropertyNames] = function getPropertyNames(o) {
-			var proto = o, unique = {}, names, i;
-			while (proto != ObjectProto) {
-				for (names = getOwnPropertyNames(proto), i = 0; i < names.length; i++) {
-					unique[names[i]] = true;
-				}
-				proto = proto.__proto__;
-			}
-			return keys(unique);
-		};
-	}
-}(Object, 'getPropertyDescriptor', 'getPropertyNames');
-
 const APPROVAL_TYPE = {
 	PROPERTY: 'property',
 	ATTRIBUTE: 'attribute'
@@ -101,7 +73,7 @@ const approveNode = (node, options) => {
 		// overriding the innerHTML property of the node to approve its children when
 		// innerHTML is used
 		if (node.nodeType === Node.ELEMENT_NODE) {
-			const innerHTMLDescriptor = Object.getPropertyDescriptor(node, 'innerHTML');
+			const innerHTMLDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 
 			Object.defineProperty(node, 'innerHTML', {
 				set: (value) => {
