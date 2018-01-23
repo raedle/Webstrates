@@ -90,7 +90,7 @@ function extractVersionOrTag(versionOrTag) {
  * @public
  */
 module.exports.requestHandler = function(req, res) {
-	// Support for legacy syntax: /<webstrateId>?v=<versionOrtag>, which is equivalent to
+	// Support for legacy syntax: /<webstrateId>?v=<versionOrTag>, which is equivalent to
 	// /<webstrateId>/<versionOrTag>/?copy.
 	if (req.query.v && !req.versionOrTag) {
 		const version = req.query.v;
@@ -174,16 +174,28 @@ module.exports.requestHandler = function(req, res) {
 
 		// Requesting a JsonML version of the webstrate by calling `/<id>?json`.
 		if ('json' in req.query) {
+			if (!snapshot.type) {
+				return res.status(404).send('Document doesn\'t exist.');
+			}
+
 			return serveJsonMLWebstrate(req, res, snapshot);
 		}
 
 		// Requesting a raw version of the webstrate (i.e. a server-generated HTML file) by calling
 		// `/<id>?raw`.
 		if ('raw' in req.query) {
+			if (!snapshot.type) {
+				return res.status(404).send('Document doesn\'t exist.');
+			}
+
 			return serveRawWebstrate(req, res, snapshot);
 		}
 
 		if ('dl' in req.query) {
+			if (!snapshot.type) {
+				return res.status(404).send('Document doesn\'t exist.');
+			}
+
 			return serveCompressedWebstrate(req, res, snapshot);
 		}
 
@@ -198,7 +210,7 @@ module.exports.requestHandler = function(req, res) {
 
 			// If the user has no default write permissions, they're not allowed to create documents.
 			if (!defaultPermissions.includes('w')) {
-				return res.status(403).send('Write permissions are required to create a new document');
+				return res.status(403).send('Write permissions are required to create a new document.');
 			}
 
 			return copyWebstrate(req, res, snapshot);
@@ -208,7 +220,7 @@ module.exports.requestHandler = function(req, res) {
 		// `/<id>/?restore=<version|tag>`.
 		if ('restore' in req.query) {
 			if (!req.user.permissions.includes('w')) {
-				return res.status(403).send('Write permissions are required to restore a document');
+				return res.status(403).send('Write permissions are required to restore a document.');
 			}
 
 			return restoreWebstrate(req, res, snapshot);
@@ -216,7 +228,7 @@ module.exports.requestHandler = function(req, res) {
 
 		if ('delete' in req.query) {
 			if (!req.user.permissions.includes('w')) {
-				return res.status(403).send('Write permissions are required to delete a document');
+				return res.status(403).send('Write permissions are required to delete a document.');
 			}
 
 			return deleteWebstrate(req, res);
@@ -322,6 +334,12 @@ function serveJsonMLWebstrate(req, res, snapshot) {
  * @private
  */
 function serveRawWebstrate(req, res, snapshot) {
+	// A specific version of webstrate is immutable, so we can cache a request to a specific version
+	// indefinitely. Tags can be moved, so we can't do the same there.
+	if (req.version) {
+		// In reality, we just cache for a year.
+		res.setHeader('Cache-Control', 'public, max-age=31557600');
+	}
 	// MongoDB doesn't support periods in keys, so we substitute them with the string `&dot;` to
 	// store them. This function reverts that. We only do this when sending raw documents, as the
 	// client side Webstrate code already handles this otherwise.
@@ -714,7 +732,7 @@ module.exports.newWebstrateRequestHandler = function(req, res) {
 				// `startsWith` and not a direct match, because the content-type often (always?) is followed
 				// by a charset declaration, which we don't care about.
 				if (response.headers['content-type'].startsWith('text/html')) {
-					jsonml = htmlToJsonML(body);
+					const jsonml = htmlToJsonML(body);
 					documentManager.createNewDocument({
 						webstrateId: req.query.id,
 						snapshot: {

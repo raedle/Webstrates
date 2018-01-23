@@ -1,4 +1,5 @@
 'use strict';
+
 const redis = require('redis');
 const sharedb = require('sharedb');
 const sharedbMongo = require('sharedb-mongo');
@@ -170,8 +171,8 @@ share.use(['fetch', 'getOps', 'query', 'submit', 'receive', 'bulk fetch', 'delet
 
 						// Initial document request (s = subscribe).
 						if (req.data.a === 's' && permissions.includes('r')) {
-						// Add client and send "hello" message including client list.
-							clientManager.addClientToWebstrate(socketId, webstrateId, true);
+							// Add client and send "hello" message including client list.
+							clientManager.addClientToWebstrate(socketId, user.userId, webstrateId, true);
 
 							// Send list of tags to clients if any.
 							documentManager.getTags(webstrateId, function(err, tags) {
