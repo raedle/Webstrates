@@ -232,7 +232,15 @@ if (!coreUtils.getLocationObject().staticMode) {
 			if (functions.hasOwnProperty(prop)) {
 				return functions[prop];
 			}
-			return obj[prop];
+			
+			let returnValue = obj[prop];
+
+			if (typeof returnValue === 'function') {
+				return function(...args) {
+					return returnValue.call(document, ...args);
+				};
+			}
+			return returnValue;
 		}
 	});
 
