@@ -3,7 +3,7 @@ const coreEvents = require('./coreEvents');
 const globalObject = require('./globalObject');
 const coreUtils = require('./coreUtils');
 
-const APPROVAL_TYPE = {
+const ELEMENT_APPROVAL_TYPE = {
 	PROPERTY: 'property',
 	ATTRIBUTE: 'attribute'
 };
@@ -13,8 +13,10 @@ const nodeApprovalModule = {
 
 		// assign options, otherwise use default options
 		this.options = Object.assign({}, {
-			approvalType: APPROVAL_TYPE.PROPERTY,
-			attributeApproval: false
+			approval: {
+				element: ELEMENT_APPROVAL_TYPE.PROPERTY,
+				attribute: false
+			}
 		}, options);
 	}
 };
@@ -31,7 +33,7 @@ config.isTransientAttribute = (DOMNode, attributeName) => {
 		attributeName.startsWith('transient-') ||
 		attributeName === 'approved' ||
 		(
-			nodeApprovalModule.options.attributeApproval &&
+			nodeApprovalModule.options.approval.attribute &&
 			DOMNode.__approvedAttributes__ &&
 			!DOMNode.__approvedAttributes__.includes(attributeName)
 		)
@@ -56,14 +58,14 @@ const isApproved = (options) => {
 
 const approveNode = (node, options) => {
 	if (isApproved(options)) {
-		switch (nodeApprovalModule.options.approvalType) {
-			case APPROVAL_TYPE.ATTRIBUTE:
+		switch (nodeApprovalModule.options.approval.element) {
+			case ELEMENT_APPROVAL_TYPE.ATTRIBUTE:
 				// only set approved attribute if possible
 				if (typeof node.setAttribute === 'function') {
 					node.setAttribute('approved', '');
 				}
 				break;
-			case APPROVAL_TYPE.PROPERTY:
+			case ELEMENT_APPROVAL_TYPE.PROPERTY:
 				node.__approved__ = true;
 				break;
 			default:
@@ -127,12 +129,15 @@ const approveNodeAttributes = (node) => {
 };
 
 coreEvents.addEventListener('modulesLoaded', () => {
-	if (nodeApprovalModule.options.attributeApproval) {
+	if (nodeApprovalModule.options.approval.attribute) {
 		coreEvents.addEventListener('DOMAttributeSet', (element, attributeName, oldValue, newValue,
 			local) => {
 			approveNodeAttribute(element, attributeName);
 		});
 	}
+
+	console.log('%cDO NOT USE DEVELOPER TOOLS DOM EDITOR TO CHANGE WEBSTRATE DOCUMENT!',
+		'background: #222; color: #ff0000; font-weight: bold; font-size: 2em');
 }, coreEvents.PRIORITY.IMMEDIATE);
 
 coreEvents.addEventListener('beforeExecuteScripts', (rootElement, html) => {
@@ -180,7 +185,7 @@ coreEvents.addEventListener('beforeExecuteScripts', (rootElement, html) => {
 		return element;
 	};
 
-	if (nodeApprovalModule.options.attributeApproval) {
+	if (nodeApprovalModule.options.approval.attribute) {
 		const setAttributeNS = Element.prototype.setAttributeNS;
 		Element.prototype.setAttributeNS = function (namespace, name, value, ...unused) {
 			let returnValue = setAttributeNS.call(this, namespace, name, value, ...unused);
