@@ -136,7 +136,7 @@ coreEvents.addEventListener('modulesLoaded', () => {
 		});
 	}
 
-	console.log('%cDO NOT USE DEVELOPER TOOLS DOM EDITOR TO CHANGE WEBSTRATE DOCUMENT!',
+	console.log('%cDO NOT USE THE DOM EDITOR IN DEVELOPER TOOLS TO CHANGE WEBSTRATE DOCUMENT!',
 		'background: #222; color: #ff0000; font-weight: bold; font-size: 2em');
 }, coreEvents.PRIORITY.IMMEDIATE);
 
