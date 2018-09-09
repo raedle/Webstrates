@@ -19,6 +19,7 @@ module.exports = {
 		'signalStream',
 		'userObjectSignaling',
 		'assets',
+		'import',
 		'messages',
 		'keepAlive'
 	],

@@ -1,15 +1,12 @@
 'use strict';
 
 const archiver = require('archiver');
-const crypto = require('crypto');
 const fs = require('fs');
 const jsonmlTools = require('jsonml-tools');
 const htmlToJsonML = require('html-to-jsonml');
 const mime = require('mime-types');
 const request = require('request');
 const shortId = require('shortid');
-const tmp = require('tmp');
-const util = require('util');
 const url = require('url');
 const yauzl = require('yauzl');
 const SELFCLOSING_TAGS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen',
@@ -18,6 +15,7 @@ const SELFCLOSING_TAGS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'in
 const documentManager = require(APP_PATH + '/helpers/DocumentManager.js');
 const permissionManager = require(APP_PATH + '/helpers/PermissionManager.js');
 const assetManager = require(APP_PATH + '/helpers/AssetManager.js');
+const importManager = require(APP_PATH + '/helpers/ImportManager.js');
 const niceWebstrateIds = require(APP_PATH + '/helpers/niceWebstrateIds.js');
 
 async function generateWebstrateId(req) {
@@ -47,7 +45,7 @@ module.exports.rootRequestHandler = function(req, res) {
  */
 module.exports.trailingSlashAppendHandler = function(req, res) {
 	var queryIndex = req.url.indexOf('?');
-	var query = queryIndex !== -1? req.url.substring(queryIndex) : '';
+	var query = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
 	res.redirect(req.path + '/' + query);
 };
 
@@ -304,7 +302,7 @@ module.exports.requestHandler = async function(req, res) {
 				let err = 'Must be logged in to copy a webstrate.';
 				if (Array.isArray(config.loggedInToCreateWebstrates)) {
 					const allowedProviders = config.loggedInToCreateWebstrates.join(' or ');
-					err =  `Must be logged in with ${allowedProviders} to copy a webstrate.`;
+					err = `Must be logged in with ${allowedProviders} to copy a webstrate.`;
 				}
 				return res.status(403).send(err);
 			}
@@ -341,7 +339,7 @@ module.exports.requestHandler = async function(req, res) {
 				let err = 'Must be logged in to delete a webstrate.';
 				if (Array.isArray(config.loggedInToCreateWebstrates)) {
 					const allowedProviders = config.loggedInToCreateWebstrates.join(' or ');
-					err =  `Must be logged in with ${allowedProviders} to delete a webstrate.`;
+					err = `Must be logged in with ${allowedProviders} to delete a webstrate.`;
 				}
 				return res.status(403).send(err);
 			}
@@ -545,7 +543,7 @@ async function copyWebstrate(req, res, snapshot) {
 			}
 			delete req.query.copy;
 			return res.redirect(url.format({
-				pathname:`/${webstrateId}/`,
+				pathname: `/${webstrateId}/`,
 				query: req.query
 			}));
 		});
@@ -594,7 +592,7 @@ function restoreWebstrate(req, res, snapshot) {
 					}
 					delete req.query.restore;
 					return res.redirect(url.format({
-						pathname:`/${req.webstrateId}/`,
+						pathname: `/${req.webstrateId}/`,
 						query: req.query
 					}));
 				});
@@ -689,168 +687,37 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 		let err = 'Must be logged in to create a webstrate.';
 		if (Array.isArray(config.loggedInToCreateWebstrates)) {
 			const allowedProviders = config.loggedInToCreateWebstrates.join(' or ');
-			err =  `Must be logged in with ${allowedProviders} to create a webstrate.`;
+			err = `Must be logged in with ${allowedProviders} to create a webstrate.`;
 		}
 
 		return res.status(409).send(err);
 	}
 
 	if ('prototypeUrl' in req.query) {
-		return request({url: req.query.prototypeUrl, encoding: 'binary' },
-			function(err, response, body) {
+		return request({ url: req.query.prototypeUrl, encoding: null },
+			async function(err, response, body) {
 				if (!err && response.statusCode !== 200) {
 					err = new Error('Invalid request. Received: ' +
-					response.statusCode + ' ' + response.statusMessage);
+						response.statusCode + ' ' + response.statusMessage);
 				}
 				if (err) {
 					console.error(err);
 					return res.status(409).send(String(err));
 				}
 				if (response.headers['content-type'] === 'application/zip' ||
-					  response.headers['content-disposition'].match(/(filename=\*?)(.*)\.zip$/i)) {
-					return tmp.file((err, filePath, fd, cleanupFileCallback) => {
-						return fs.writeFile(filePath, body, 'binary', err => {
-							if (err) {
-								console.error(err);
-								return cleanupFileCallback();
-							}
-							yauzl.open(filePath, { lazyEntries: true } , (err, zipFile) => {
-								if (err) {
-									console.error(err);
-									cleanupFileCallback();
-								}
+					response.headers['content-disposition'].match(/(filename=\*?)(.*)\.zip$/i)) {
 
-								let webstrateId, htmlDocumentFound = false;
-								let assets = [];
-								zipFile.on('entry', entry => {
-									if (/\/$/.test(entry.fileName)) {
-									// Directory file names end with '/'.
-									// Note that entries for directories themselves are optional.
-									// An entry's fileName implicitly requires its parent directories to exist.
-										zipFile.readEntry();
-									} else {
-									// file entry
-										zipFile.openReadStream(entry, (err, readStream) => {
-											if (err) return console.error(err);
-											readStream.on('end', function() {
-												zipFile.readEntry();
-											});
-
-											if (!htmlDocumentFound && entry.fileName.match(/index\.html?$/i)) {
-												htmlDocumentFound = true;
-												streamToString(readStream, async htmlDoc => {
-													let jsonml = htmlToJsonML(htmlDoc);
-													// MongoDB doesn't accept periods in keys, so we replace them with
-													// `&dot;`s when storing them in the database.
-													jsonml = replaceInKeys(jsonml, '.', '&dot;');
-													let snapshot = {
-														type: 'http://sharejs.org/types/JSONv0',
-														data: jsonml
-													};
-													const userPermissions = await permissionManager
-														.getUserPermissionsFromSnapshot(req.user.username, req.user.provider,
-															snapshot);
-													// If user doesn't have write permissions to the docuemnt, add them if
-													// the user is logged in, otherwise just delete all permissions on the
-													// new document.
-													if (!userPermissions.includes('w')) {
-														if (req.user.username === 'anonymous' && req.user.provider === '') {
-															snapshot = permissionManager.clearPermissionsFromSnapshot(snapshot);
-														} else {
-															snapshot = permissionManager
-																.addPermissionsToSnapshot(req.user.username, req.user.provider,
-																	'rw', snapshot);
-														}
-													}
-													documentManager.createNewDocument({
-														webstrateId: req.query.id || await generateWebstrateId(req),
-														snapshot
-													}, function(err, _webstrateId) {
-														if (err) {
-															console.error(err);
-															return;
-														}
-														webstrateId = _webstrateId;
-													});
-												});
-											}
-											else {
-												crypto.pseudoRandomBytes(16, (err, raw) => {
-													const fileName =  raw.toString('hex');
-													const filePath = assetManager.UPLOAD_DEST + fileName;
-													const writeStream = fs.createWriteStream(filePath);
-													readStream.pipe(writeStream);
-													assets.push({
-														filename: fileName,
-														originalname: entry.fileName.match(/([^/]+)$/)[0],
-														size: entry.uncompressedSize,
-														mimetype: mime.lookup(entry.fileName)
-													});
-												});
-											}
-										});
-									}
-								});
-
-								function addAssetsToWebstrateOrDeleteTheAssets() {
-									if (!webstrateId) {
-										assets.forEach(asset => {
-											fs.unlink(assetManager.UPLOAD_DEST + asset.filename, () => {});
-										});
-										return res.status(409).send(htmlDocumentFound
-											? 'Unable to create webstrate from index.html file.'
-											: 'No index.html found.');
-									}
-
-									var source = `${req.user.userId} (${req.remoteAddress})`;
-									// Assets ending in .searchable aren't real assets, but just an indication that
-									// the asset they're referring to should be searchable. E.g. if two assets
-									// data.csv and data.csv.searchable are uploaded, the ladder just serves to let us
-									// know that the former should be made searchable.
-									let searchables = assets.filter(asset =>
-										asset.originalname.endsWith('.searchable'));
-
-									// Remove dummy files from assets list.
-									assets = assets.filter(asset =>
-										!asset.originalname.endsWith('.searchable'));
-
-									// Delete the dummy files from the system.
-									searchables.forEach(asset => {
-										fs.unlink(assetManager.UPLOAD_DEST + asset.filename, () => {});
-									});
-
-									// Now create a simple list (no objects, just asset nameS) of the asset names
-									// that should be searchable. We remember to remove the 11-character long
-									// '.searchable'  prefix.
-									searchables = searchables.map(asset => asset.originalname.slice(0, -11));
-									assetManager.addAssets(webstrateId, assets, searchables, source,
-										(err, assetRecords) => {
-											res.redirect(`/${webstrateId}/`);
-										});
-								}
-
-								zipFile.once('end', function() {
-									zipFile.close();
-									cleanupFileCallback();
-
-									if (webstrateId) {
-										return addAssetsToWebstrateOrDeleteTheAssets();
-									}
-
-									// If no webstrateId exists, we're waiting for MongoDB, so we'll wait 500ms.
-									setTimeout(addAssetsToWebstrateOrDeleteTheAssets, 500);
-								});
-
-								zipFile.readEntry();
-							});
-						});
-					});
+					// The response body is a buffer; read the buffer as zip archive and import its
+					// contents as webstrate document. Redirect the client to the new webstrate id
+					// after the import finished.
+					const webstrateId = await importManager.importWebstrateFromArchiveBuffer(req, res, body);
+					return res.redirect(`/${webstrateId}/`);
 				}
 
 				// `startsWith` and not a direct match, because the content-type often (always?) is followed
 				// by a charset declaration, which we don't care about.
 				if (response.headers['content-type'].startsWith('text/html') ||
-					  response.headers['content-disposition'].match(/(filename=\*?)(.*)\.html?$/i)) {
+					response.headers['content-disposition'].match(/(filename=\*?)(.*)\.html?$/i)) {
 					const jsonml = htmlToJsonML(body);
 					documentManager.createNewDocument({
 						webstrateId: req.query.id,
@@ -866,14 +733,14 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 						delete req.query.prototypeUrl;
 						delete req.query.id;
 						res.redirect(url.format({
-							pathname:`/${webstrateId}/`,
+							pathname: `/${webstrateId}/`,
 							query: req.query
 						}));
 					});
 				}
 
 				res.status(405).send('Can only prototype from text/html or application/zip sources. ' +
-				'Received file with content-type: ' + response.headers['content-type']);
+					'Received file with content-type: ' + response.headers['content-type']);
 			});
 	}
 

@@ -33,6 +33,7 @@ const clientManager = require(APP_PATH + '/helpers/ClientManager.js');
 const sessionManager = require(APP_PATH + '/helpers/SessionManager.js');
 const permissionManager = require(APP_PATH + '/helpers/PermissionManager.js');
 const assetManager = require(APP_PATH + '/helpers/AssetManager.js');
+const importManager = require(APP_PATH + '/helpers/ImportManager.js');
 const httpRequestController = require(APP_PATH + '/helpers/HttpRequestController.js');
 
 // Setting up multi-threading. If config.threads is 0, a thread for each core is created.
@@ -133,6 +134,20 @@ app.get('/new', httpRequestController.newWebstrateRequestHandler);
 app.get(/^\/([A-Z0-9._-]+)\/(?:([A-Z0-9%_-]+)\/)?(?:([A-Z0-9%.()\[\]{}_-]+\.[A-Z0-9_-]+)(?:\/(.*))?)?$/i,
 	httpRequestController.extractQuery,
 	httpRequestController.requestHandler);
+
+// Import route required for webstrate.import API, which uses fetch('/import') on the
+// client to upload an archive to the server.
+app.post('/import',
+	httpRequestController.extractQuery,
+	function(req, res) {
+
+		if (req.headers['content-type'].startsWith('multipart/form-data;')) {
+			return importManager.uploadAndImport(req, res);
+		}
+
+		return res.status(422).send('Parameter missing from request. No files found.');
+	}
+);
 
 // We can only post to /<webstrateId>/, because we won't allow users to add assets to old versions
 // of a document.
