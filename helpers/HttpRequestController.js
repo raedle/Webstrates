@@ -912,16 +912,16 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 	}
 
 	if (req.query.prototype) {
-		var path = `/${req.query.prototype}/`;
+		var pathname = `/${req.query.prototype}/`;
 		delete req.query.prototype;
 		if (req.query.v) {
-			path += `${req.query.v}/`;
+			pathname += `${req.query.v}/`;
 			delete req.query.v;
 		}
 		req.query.copy = req.query.id;
 		delete req.query.id;
 		return res.redirect(url.format({
-			pathname: path,
+			pathname: pathname,
 			query: req.query
 		}));
 	}
