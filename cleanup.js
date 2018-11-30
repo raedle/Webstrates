@@ -9,13 +9,14 @@
 global.APP_PATH = __dirname;
 
 const fs = require('fs');
+const path = require('path');
 const util = require('util');
 const readline = require('readline');
 const configHelper = require(APP_PATH + '/helpers/ConfigHelper.js');
 const config = global.config = configHelper.getConfig();
 const db = require(APP_PATH + '/helpers/database.js');
 
-const UPLOAD_DEST = `${APP_PATH}/uploads/`;
+const UPLOAD_DEST = config.uploadsFolder;
 
 const cleanUp = async () => {
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -48,7 +49,8 @@ const cleanUp = async () => {
 	rl.question('Delete all dangling files/entries [y/N]? ', async (answer) => {
 		if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
 			console.log('Deleting files from file system.');
-			const assetsFsPromises = assetsOnlyInFs.map(async (asset) => unlink(UPLOAD_DEST + asset));
+			const filePath = path.join(UPLOAD_DEST, asset);
+			const assetsFsPromises = assetsOnlyInFs.map(async (asset) => unlink(filePath));
 			await Promise.all(assetsFsPromises);
 
 			console.log('Deleting entries from database.');

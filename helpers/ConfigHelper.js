@@ -1,17 +1,16 @@
 'use strict';
 
-const fss = require('fs-sync');
-const crypto = require('crypto');
+const fs = require('fs');
 
 /** Create config file if it doesn't already exist by copying config-sample. */
 const createConfig = () => {
-	if (!fss.exists(APP_PATH + '/config.json')) {
+	if (!fs.existsSync(APP_PATH + '/config.js')) {
 		console.warn('No config file present, creating one now');
-		if (!fss.exists(APP_PATH + '/config-sample.json')) {
+		if (!fs.existsSync(APP_PATH + '/config-sample.js')) {
 			console.error('Sample config not present either, terminating');
 			process.exit(1);
 		} else {
-			fss.write(APP_PATH + '/config.json', JSON.stringify(getSampleConfig(), null, '\t'));
+			fs.copyFileSync(APP_PATH + '/config-sample.js', APP_PATH + '/config.js');
 		}
 	}
 };
@@ -19,19 +18,11 @@ const createConfig = () => {
 /** Read config file from disk. */
 const getConfig = () => {
 	try {
-		return fss.readJSON(APP_PATH + '/config.json');
+		return require(APP_PATH + '/config.js');
 	} catch (e) {
 		console.error('Unable to parse config file.');
 		process.exit(1);
 	}
-};
-
-/** Read sample config from disk and add a randomly generated cookie encryption key. */
-const getSampleConfig = () => {
-	const config = fss.readJSON(APP_PATH + '/config-sample.json');
-	const randomSecret = crypto.randomBytes(16).toString('base64');
-	config.auth.cookie.secret = randomSecret;
-	return config;
 };
 
 /**
@@ -59,5 +50,5 @@ const mergeJSON = (target, filler) => {
  */
 exports.getConfig = () => {
 	createConfig();
-	return mergeJSON(getConfig(), getSampleConfig());
+	return getConfig();
 };

@@ -2,7 +2,7 @@
 node_modules
 npm-debug.log
 package-lock.json
-config.json
+config.js
 uploads
 static/client.html
 static/webstrates.js

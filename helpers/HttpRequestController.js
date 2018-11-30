@@ -3,6 +3,7 @@
 const archiver = require('archiver');
 const crypto = require('crypto');
 const fs = require('graceful-fs');
+const path = require('path');
 const jsonmlTools = require('jsonml-tools');
 const htmlToJsonML = require('html-to-jsonml');
 const mime = require('mime-types');
@@ -144,7 +145,8 @@ function setCorsHeaders(req, res, snapshot) {
  * @private
  */
 const getZipStructure = async (fileName) => new Promise((accept, reject) => {
-	yauzl.open(APP_PATH + '/uploads/' + fileName, { lazyEntries: true }, (err, zipFile) => {
+	const archivePath = path.join(config.uploadsFolder, fileName);
+	yauzl.open(archivePath, { lazyEntries: true }, (err, zipFile) => {
 		const fileList = [];
 		zipFile.on('entry', entry => {
 			fileList.push(entry.fileName);
@@ -222,7 +224,8 @@ module.exports.requestHandler = async function(req, res) {
 				}
 
 				if (req.assetPath) {
-					return yauzl.open(APP_PATH + '/uploads/' + asset.fileName, { lazyEntries: true },
+					const archivePath = path.join(config.uploadsFolder, asset.fileName);
+					return yauzl.open(archivePath, { lazyEntries: true },
 						(err, zipFile) => {
 							if (err) {
 								return res.status(400).send(`"${req.assetName}" is not a valid ZIP file.`);
@@ -262,7 +265,9 @@ module.exports.requestHandler = async function(req, res) {
 				// it'll always refer to the same thing, allowing us to set a longer maxAge.
 				var maxAge = req.version ? '1y' : (config.maxAge || '1m');
 				res.type(asset.mimeType);
-				return res.sendFile(APP_PATH + '/uploads/' + asset.fileName, { maxAge });
+
+				const archivePath = path.join(config.uploadsFolder, asset.fileName);
+				return res.sendFile(archivePath, { maxAge });
 			} catch (error) {
 				console.error(error);
 				return res.status(409).send(String(err));
@@ -501,7 +506,7 @@ function serveCompressedWebstrate(req, res, snapshot) {
 			{ name: `${req.webstrateId}/index.html` });
 
 		assets.forEach(function(asset) {
-			var filePath = `${assetManager.UPLOAD_DEST}${asset.fileName}`;
+			var filePath = path.join(assetManager.UPLOAD_DEST, asset.fileName);
 			if (fs.existsSync(filePath)) {
 				archive.file(filePath,
 					{ name: `${req.webstrateId}/${asset.originalFileName}` });
@@ -804,7 +809,7 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 											else {
 												crypto.pseudoRandomBytes(16, (err, raw) => {
 													const fileName =  raw.toString('hex');
-													const filePath = assetManager.UPLOAD_DEST + fileName;
+													const filePath = path.join(assetManager.UPLOAD_DEST, fileName);
 													const writeStream = fs.createWriteStream(filePath);
 													readStream.pipe(writeStream);
 													assets.push({
@@ -822,7 +827,8 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 								function addAssetsToWebstrateOrDeleteTheAssets() {
 									if (!webstrateId) {
 										assets.forEach(asset => {
-											fs.unlink(assetManager.UPLOAD_DEST + asset.filename, () => {});
+											const filePath = path.join(assetManager.UPLOAD_DEST, asset.filename);
+											fs.unlink(filePath, () => {});
 										});
 										return res.status(409).send(htmlDocumentFound
 											? 'Unable to create webstrate from index.html file.'
@@ -843,7 +849,8 @@ module.exports.newWebstrateRequestHandler = async function(req, res) {
 
 									// Delete the dummy files from the system.
 									searchables.forEach(asset => {
-										fs.unlink(assetManager.UPLOAD_DEST + asset.filename, () => {});
+										const filePath = path.join(assetManager.UPLOAD_DEST, asset.filename);
+										fs.unlink(filePath, () => {});
 									});
 
 									// Now create a simple list (no objects, just asset nameS) of the asset names
