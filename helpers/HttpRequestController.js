@@ -1,12 +1,13 @@
 'use strict';
 
 const archiver = require('archiver');
-const fs = require('fs');
+const fs = require('graceful-fs');
 const jsonmlTools = require('jsonml-tools');
 const htmlToJsonML = require('html-to-jsonml');
 const mime = require('mime-types');
 const request = require('request');
 const shortId = require('shortid');
+const tmp = require('tmp');
 const url = require('url');
 const yauzl = require('yauzl');
 const SELFCLOSING_TAGS = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen',
@@ -137,6 +138,26 @@ function setCorsHeaders(req, res, snapshot) {
 }
 
 /**
+ * Get Object structure of all files and directories in a ZIP asset.
+ * @param  {string} req    Name of ZIP file.
+ * @return {obj}           Object with structure representing the ZIP file.
+ * @private
+ */
+const getZipStructure = async (fileName) => new Promise((accept, reject) => {
+	yauzl.open(APP_PATH + '/uploads/' + fileName, { lazyEntries: true }, (err, zipFile) => {
+		const fileList = [];
+		zipFile.on('entry', entry => {
+			fileList.push(entry.fileName);
+			zipFile.readEntry();
+		});
+		zipFile.once('end', () => {
+			accept(fileList);
+		});
+		zipFile.readEntry();
+	});
+});
+
+/**
  * Primary request handler.
  * @param {obj} req Express request object.
  * @param {obj} res Express response object.
@@ -194,18 +215,29 @@ module.exports.requestHandler = async function(req, res) {
 					return res.status(404).send(`Asset "${req.assetName}" not found.`);
 				}
 
+				if ('dir' in req.query) {
+					const zipStructure = await getZipStructure(asset.fileName);
+					res.json(zipStructure);
+					return;
+				}
+
 				if (req.assetPath) {
-					let entryFound = false;
 					return yauzl.open(APP_PATH + '/uploads/' + asset.fileName, { lazyEntries: true },
 						(err, zipFile) => {
 							if (err) {
 								return res.status(400).send(`"${req.assetName}" is not a valid ZIP file.`);
 							}
-							const allEntries = [];
-							zipFile.on('entry', entry => {
-								allEntries.push(entry.fileName);
+							zipFile.on('entry', async entry => {
 								if (req.assetPath !== entry.fileName) {
 									return zipFile.readEntry();
+								}
+
+								// If requested file is a directory, list directory files.
+								if (entry.fileName.endsWith('/')) {
+									const zipStructure = await getZipStructure(asset.fileName);
+									const filteredZipStructure = zipStructure.filter(path =>
+										path.startsWith(entry.fileName));
+									return res.json(filteredZipStructure);
 								}
 
 								zipFile.openReadStream(entry, (err, readStream) => {
@@ -218,12 +250,9 @@ module.exports.requestHandler = async function(req, res) {
 							});
 							zipFile.readEntry();
 
-							zipFile.once('end', () => {
-								if (!entryFound) {
-									res.status(404).send(`File "${req.assetPath}" not found in asset ` +
-										`"${req.assetName}".<br>\n` +
-										`<pre>\n${JSON.stringify(allEntries, null, '  ')}\n</pre>`);
-								}
+							zipFile.once('end', async () => {
+								res.status(404).send(`File "${req.assetPath}" not found in asset ` +
+									`"${req.assetName}".\n`);
 							});
 						});
 				}
