@@ -70,6 +70,9 @@ if (pubsub) {
 			case 'newAsset':
 				module.exports.announceNewAsset(message.webstrateId, message.asset);
 				break;
+			case 'import':
+				module.exports.announceImport(message.webstrateId, message.import);
+				break;
 			case 'cookieUpdate':
 				module.exports.updateCookie(message.userId, message.webstrateId, message.update.key,
 					message.update.value);
@@ -559,6 +562,30 @@ module.exports.announceNewAsset = function(webstrateId, asset, local) {
 	}
 };
 
+/**
+ * Send message all clients in a webstrate about the import..
+ * @param {string} webstrateId      WebstrateId.
+ * @param {Object} importMessage    Import object.
+ * @param {bool}   local            Whether the event has happened locally (on this server instance)
+ *                                  or remotely (on another server instance). We should only forward
+ *                                  local publish messages, otherwise we end up in a livelock where
+ *                                  we continuously send the same event back and forth between
+ *                                  instances.
+ * @public
+ */
+module.exports.announceImport = function(webstrateId, importMessage, local) {
+	module.exports.sendToClients(webstrateId, {
+		wa: 'import',
+		d: webstrateId,
+		import: importMessage,
+	});
+
+	if (local && pubsub) {
+		pubsub.publisher.publish(PUBSUB_CHANNEL, JSON.stringify({
+			action: 'import', webstrateId, importMessage, WORKER_ID
+		}));
+	}
+};
 
 /**
  * Update cookies. Any update made to a user's is sent to all of the user's conneted clients.

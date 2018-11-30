@@ -10,8 +10,8 @@ module.exports = {
 		return process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/webstrate';
 	},
 	get uploadsFolder() {
-		const folder = process.env.UPLOADS_FOLDER || `${__dirname}/uploads/`;
-		return path.resolve(folder);
+		const uploadsPath = process.env.UPLOADS_FOLDER || `${__dirname}/uploads/`;
+		return path.resolve(uploadsPath);
 	},
 	niceWebstrateIds: true,
 	maxAge: '1d',
@@ -34,14 +34,6 @@ module.exports = {
 			}
 		],
 		providers: {
-			github: {
-				node_module: 'passport-github',
-				config: {
-					clientID: '83d8dab56afbc353f16a',
-					clientSecret: 'b0c405f4f9ec05f34fd5e0c0f71b765e02b7319d',
-					callbackURL: 'http://localhost:7007/auth/github/callback'
-				}
-			}
 		}
 	},
 	tagging: {

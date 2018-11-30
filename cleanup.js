@@ -49,12 +49,14 @@ const cleanUp = async () => {
 	rl.question('Delete all dangling files/entries [y/N]? ', async (answer) => {
 		if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
 			console.log('Deleting files from file system.');
-			const filePath = path.join(UPLOAD_DEST, asset);
-			const assetsFsPromises = assetsOnlyInFs.map(async (asset) => unlink(filePath));
+			const assetsFsPromises = assetsOnlyInFs.map(async (asset) => {
+				const filePath = path.join(UPLOAD_DEST, asset);
+				unlink(filePath);
+			});
 			await Promise.all(assetsFsPromises);
 
 			console.log('Deleting entries from database.');
-			await db.assets.deleteMany({ fileName: { $in: assetsOnlyInDb }});
+			await db.assets.deleteMany({ fileName: { $in: assetsOnlyInDb } });
 
 			console.log('Done.');
 		} else {
